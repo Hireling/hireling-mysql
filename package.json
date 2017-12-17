@@ -8,6 +8,16 @@
   "scripts": {
     "build": "tsc"
   },
+  "dependencies": {
+    "mysql2": "~1.5.1"
+  },
+  "devDependencies": {
+    "@types/node": "~8.5.1",
+    "typescript": "~2.6.2"
+  },
+  "peerDependencies": {
+    "hireling": "^1"
+  },
   "keywords": [
     "mysql",
     "database",

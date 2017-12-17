@@ -1,6 +1,6 @@
 # hireling-mysql
 
-### Official MySQL connector for [Hireling](https://github.com/Hireling/hireling)
+### Official MySQL database connector for [Hireling](https://github.com/Hireling/hireling)
 
 ### **NOT production-ready at the moment**
   - API is unstable and will change
