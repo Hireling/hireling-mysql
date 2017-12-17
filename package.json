@@ -1,0 +1,27 @@
+{
+  "name": "hireling-mysql",
+  "version": "1.0.0",
+  "description": "Official MySQL database connector for Hireling.",
+  "author": "Alex Soncodi",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "build": "tsc"
+  },
+  "keywords": [
+    "mysql",
+    "database",
+    "store",
+    "driver",
+    "connector",
+    "hireling"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Hireling/hireling-mysql.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Hireling/hireling-mysql/issues"
+  },
+  "homepage": "https://github.com/Hireling/hireling-mysql#readme"
+}
