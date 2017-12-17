@@ -6,7 +6,10 @@
   "license": "MIT",
   "private": true,
   "scripts": {
-    "build": "tsc"
+    "clean": "rm -rf ./build",
+    "lint": "tslint -p tsconfig.json",
+    "build": "tsc",
+    "package": "npm run clean && npm run build && ./package.sh"
   },
   "dependencies": {
     "mysql2": "~1.5.1"
@@ -23,6 +26,7 @@
     "database",
     "store",
     "driver",
+    "adapter",
     "connector",
     "hireling"
   ],
