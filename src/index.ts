@@ -8,6 +8,7 @@ import { Serializer } from 'hireling/serializer';
 interface MysqlAttr {
 }
 
+// TODO: use @types package
 interface MysqlConnection extends EventEmitter {
   end:     (...args: any[]) => Promise<any>;
   query:   (query: string) => any;
