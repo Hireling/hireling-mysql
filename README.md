@@ -1,6 +1,6 @@
 # hireling-mysql
 
-### Official MySQL database connector for [Hireling](https://github.com/Hireling/hireling)
+### MySQL database connector for [Hireling](https://github.com/Hireling/hireling)
 
 [![npm version](https://badge.fury.io/js/hireling-mysql.svg)](https://badge.fury.io/js/hireling-mysql)
 
