@@ -18,9 +18,9 @@ interface MysqlConnection extends EventEmitter {
 export const MYSQL_DEFS = {
   host:     'localhost',
   port:     3306,
-  db:       'test',
-  user:     'test',
-  password: 'test',
+  db:       'hireling',
+  user:     'hireling',
+  password: 'hireling',
   table:    'jobs'
 };
 
