@@ -1,6 +1,6 @@
 {
   "name": "hireling-mysql",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Official MySQL database connector for Hireling.",
   "author": "Alex Soncodi",
   "license": "MIT",
