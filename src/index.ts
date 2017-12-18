@@ -1,6 +1,6 @@
 import { EventEmitter } from 'events';
 import * as mysql from 'mysql2/promise';
-import { Db, DbEvent } from 'hireling/db';
+import { Db as HirelingDb, DbEvent } from 'hireling/db';
 import { JobId, JobAttr, JobStatus } from 'hireling/job';
 import { WorkerId } from 'hireling/worker';
 import { Serializer } from 'hireling/serializer';
@@ -26,7 +26,7 @@ export const MYSQL_DEFS = {
 
 export type MysqlOpt = typeof MYSQL_DEFS;
 
-export class MysqlEngine extends Db {
+export class MysqlEngine extends HirelingDb {
   private connection: MysqlConnection;
   private readonly dbc: MysqlOpt;
   private readonly dbtable: string;
