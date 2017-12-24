@@ -19,7 +19,7 @@
     "typescript": "~2.6.2"
   },
   "peerDependencies": {
-    "hireling": "^1"
+    "hireling": "^1.1.0"
   },
   "keywords": [
     "mysql",

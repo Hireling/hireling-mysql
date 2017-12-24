@@ -1,7 +1,7 @@
 import { EventEmitter } from 'events';
 import * as mysql from 'mysql2/promise';
 import { Db as HirelingDb, DbEvent } from 'hireling/db';
-import { JobId, JobAttr, JobStatus } from 'hireling/job';
+import { JobId, JobAttr } from 'hireling/job';
 import { WorkerId } from 'hireling/worker';
 import { Serializer } from 'hireling/serializer';
 
@@ -30,7 +30,7 @@ export class MysqlEngine extends HirelingDb {
   private connection: MysqlConnection;
   private readonly dbc: MysqlOpt;
   private readonly dbtable: string;
-  private readonly sproc = 'atomicFindReady';
+  private readonly sproc = 'reserve_sproc';
 
   constructor(opt?: Partial<MysqlOpt>) {
     super();
@@ -86,15 +86,6 @@ export class MysqlEngine extends HirelingDb {
       });
   }
 
-  async clear() {
-    const [rows] = await this.connection.execute(
-      // `TRUNCATE TABLE ${this.dbtable}`
-      `DELETE FROM ${this.dbtable}`
-    ) as any;
-
-    return rows && rows.affectedRows || 0;
-  }
-
   async add(job: JobAttr) {
     this.log.debug(`add job ${job.id}`);
 
@@ -128,7 +119,22 @@ export class MysqlEngine extends HirelingDb {
     return result ? MysqlEngine.fromMysql<JobAttr>(result) : null;
   }
 
-  async atomicFindReady(wId: WorkerId) {
+  async get(query: Partial<JobAttr>) {
+    this.log.debug('search jobs');
+
+    const where = Object.keys(query).map(k => `\`${k}\` = ?`).join(' AND ');
+
+    const [rows] = await this.connection.execute(
+      `SELECT * FROM ${this.dbtable} WHERE ${where}`,
+      Object.values(query)
+    );
+
+    const results: MysqlAttr[] = rows;
+
+    return results.map(r => MysqlEngine.fromMysql<JobAttr>(r));
+  }
+
+  async reserve(wId: WorkerId) {
     this.log.debug(`atomic find update job ${wId}`);
 
     // call stored procedure and unwrap nested results
@@ -168,51 +174,23 @@ export class MysqlEngine extends HirelingDb {
     return true;
   }
 
-  async removeByStatus(status: JobStatus) {
-    this.log.debug(`remove jobs by status [${status}]`);
+  async remove(query: Partial<JobAttr>) {
+    this.log.debug('remove jobs');
+
+    const where = Object.keys(query).map(k => `\`${k}\` = ?`).join(' AND ');
 
     const [rows] = await this.connection.execute(
-      `DELETE FROM ${this.dbtable} WHERE \`status\` = ?`, [status]
+      `DELETE FROM ${this.dbtable} WHERE ${where}`,
+      Object.values(query)
     ) as any;
 
     return rows && rows.affectedRows || 0;
   }
 
-  async refreshExpired() {
-    this.log.debug('refresh expired jobs');
-
-    // const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
-    const now = new Date();
-
+  async clear() {
     const [rows] = await this.connection.execute(
-      `UPDATE ${this.dbtable}
-      SET
-        status = 'ready',
-        workerid = NULL,
-        attempts = attempts + 1,
-        expires = DATE_ADD(NOW(), INTERVAL (expirems / 1000) SECOND)
-      WHERE \`status\` = ? AND expires <= ?`,
-      ['processing', now]
-    ) as any;
-
-    return rows && rows.affectedRows || 0;
-  }
-
-  async refreshStalled() {
-    this.log.debug('refresh stalled jobs');
-
-    // const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
-    const now = new Date();
-
-    const [rows] = await this.connection.execute(
-      `UPDATE ${this.dbtable}
-      SET
-        status = 'ready',
-        workerid = NULL,
-        attempts = attempts + 1,
-        stalls = DATE_ADD(NOW(), INTERVAL (stallms / 1000) SECOND)
-      WHERE \`status\` = ? AND stalls <= ?`,
-      ['processing', now]
+      // `TRUNCATE TABLE ${this.dbtable}`
+      `DELETE FROM ${this.dbtable}`
     ) as any;
 
     return rows && rows.affectedRows || 0;
@@ -230,7 +208,8 @@ export class MysqlEngine extends HirelingDb {
         '`stalls` DATETIME NULL,',
         '`stallms` INT NULL,',
         "`status` ENUM('ready', 'processing', 'done', 'failed') NOT NULL,",
-        '`attempts` INT NOT NULL,',
+        '`retryx` INT NOT NULL,',
+        '`retries` INT NOT NULL,',
         '`data` LONGTEXT NULL,',
         'PRIMARY KEY (`id`),',
         'UNIQUE INDEX `id_UNIQUE` (`id` ASC)',
