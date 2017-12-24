@@ -135,7 +135,7 @@ export class MysqlEngine extends HirelingDb {
   }
 
   async reserve(wId: WorkerId) {
-    this.log.debug(`atomic find update job ${wId}`);
+    this.log.debug(`atomic reserve job ${wId}`);
 
     // call stored procedure and unwrap nested results
     const [[[row]]] = await this.connection.query(`CALL ${this.sproc}()`);
