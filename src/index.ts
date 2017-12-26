@@ -13,12 +13,19 @@ interface MysqlConnection extends EventEmitter {
   end:     (...args: any[]) => Promise<any>;
   query:   (query: string) => any;
   execute: (query: string, args?: any[]) => Promise<[MysqlAttr[], any]>;
+  release: () => void;
+}
+
+interface MysqlPool extends EventEmitter {
+  end:     (...args: any[]) => Promise<any>;
+  query:   (query: string) => any;
+  execute: (query: string, args?: any[]) => Promise<[MysqlAttr[], any]>;
 }
 
 export const MYSQL_DEFS = {
   host:     'localhost',
   port:     3306,
-  db:       'hireling',
+  database: 'hireling',
   user:     'hireling',
   password: 'hireling',
   table:    'jobs'
@@ -27,7 +34,7 @@ export const MYSQL_DEFS = {
 export type MysqlOpt = typeof MYSQL_DEFS;
 
 export class MysqlEngine extends HirelingDb {
-  private connection: MysqlConnection;
+  private pool: MysqlPool;
   private readonly dbc: MysqlOpt;
   private readonly dbtable: string;
   private readonly sproc = 'reserve_sproc';
@@ -38,20 +45,24 @@ export class MysqlEngine extends HirelingDb {
     this.log.debug('db created (mysql)');
 
     this.dbc = { ...MYSQL_DEFS, ...opt };
-    this.dbtable = `\`${this.dbc.db}\`.\`${this.dbc.table}\``;
+    this.dbtable = `\`${this.dbc.database}\`.\`${this.dbc.table}\``;
   }
 
   open() {
-    mysql.createConnection({
+    const pool = mysql.createPool({
       host:     this.dbc.host,
+      port:     this.dbc.port,
       user:     this.dbc.user,
       password: this.dbc.password,
-      database: this.dbc.db
-    })
-    .then(async (conn: MysqlConnection) => {
+      database: this.dbc.database
+    });
+
+    pool.getConnection().then(async (conn: MysqlConnection) => {
       this.log.debug('opened');
 
-      this.connection = conn;
+      this.pool = pool;
+
+      conn.release();
 
       conn.on('error', (err) => {
         this.log.error('db connection error', err);
@@ -59,7 +70,7 @@ export class MysqlEngine extends HirelingDb {
         this.event(DbEvent.close, err);
       });
 
-      await this.createTable();
+      await this.initSchema();
 
       this.event(DbEvent.open);
     })
@@ -73,7 +84,7 @@ export class MysqlEngine extends HirelingDb {
   close(force = false) {
     this.log.warn(`closing - ${force ? 'forced' : 'graceful'}`);
 
-    this.connection.end()
+    this.pool.end()
       .then(() => {
         this.log.debug('closed');
 
@@ -104,13 +115,13 @@ export class MysqlEngine extends HirelingDb {
       `VALUES (${vals.map(() => '?').join(', ')})`
     ].join(' ');
 
-    await this.connection.execute(insert, vals);
+    await this.pool.execute(insert, vals);
   }
 
   async getById(id: JobId) {
     this.log.debug('get job by id');
 
-    const [rows] = await this.connection.execute(
+    const [rows] = await this.pool.execute(
       `SELECT * FROM ${this.dbtable} WHERE \`id\` = ?`, [id]
     );
 
@@ -124,7 +135,7 @@ export class MysqlEngine extends HirelingDb {
 
     const where = Object.keys(query).map(k => `\`${k}\` = ?`).join(' AND ');
 
-    const [rows] = await this.connection.execute(
+    const [rows] = await this.pool.execute(
       `SELECT * FROM ${this.dbtable} WHERE ${where}`,
       Object.values(query)
     );
@@ -138,7 +149,7 @@ export class MysqlEngine extends HirelingDb {
     this.log.debug(`atomic reserve job ${wId}`);
 
     // call stored procedure and unwrap nested results
-    const [[[row]]] = await this.connection.query(`CALL ${this.sproc}()`);
+    const [[[row]]] = await this.pool.query(`CALL ${this.sproc}()`);
 
     const result: MysqlAttr|null = row || null;
 
@@ -148,7 +159,7 @@ export class MysqlEngine extends HirelingDb {
   async updateById(id: JobId, values: Partial<JobAttr>) {
     this.log.debug('update job');
 
-    const [rows] = await this.connection.execute(
+    const [rows] = await this.pool.execute(
       `UPDATE ${this.dbtable}
       SET ${Object.keys(values).map(v => `${v} = ?`).join(', ')}
       WHERE \`id\` = ?`,
@@ -163,7 +174,7 @@ export class MysqlEngine extends HirelingDb {
   async removeById(id: JobId) {
     this.log.debug('remove job by id');
 
-    const [rows] = await this.connection.execute(
+    const [rows] = await this.pool.execute(
       `DELETE FROM ${this.dbtable} WHERE \`id\` = ?`, [id]
     ) as any;
 
@@ -179,7 +190,7 @@ export class MysqlEngine extends HirelingDb {
 
     const where = Object.keys(query).map(k => `\`${k}\` = ?`).join(' AND ');
 
-    const [rows] = await this.connection.execute(
+    const [rows] = await this.pool.execute(
       `DELETE FROM ${this.dbtable} WHERE ${where}`,
       Object.values(query)
     ) as any;
@@ -188,7 +199,7 @@ export class MysqlEngine extends HirelingDb {
   }
 
   async clear() {
-    const [rows] = await this.connection.execute(
+    const [rows] = await this.pool.execute(
       // `TRUNCATE TABLE ${this.dbtable}`
       `DELETE FROM ${this.dbtable}`
     ) as any;
@@ -196,27 +207,25 @@ export class MysqlEngine extends HirelingDb {
     return rows && rows.affectedRows || 0;
   }
 
-  private async createTable() {
-    const create = [
-      `CREATE TABLE IF NOT EXISTS ${this.dbtable} (`,
-        '`id` CHAR(36) NOT NULL,',
-        '`workerid` CHAR(36) NULL,',
-        '`name` VARCHAR(100) NULL,',
-        '`created` DATETIME NOT NULL,',
-        '`expires` DATETIME NULL,',
-        '`expirems` INT NULL,',
-        '`stalls` DATETIME NULL,',
-        '`stallms` INT NULL,',
-        "`status` ENUM('ready', 'processing', 'done', 'failed') NOT NULL,",
-        '`retryx` INT NOT NULL,',
-        '`retries` INT NOT NULL,',
-        '`data` LONGTEXT NULL,',
-        'PRIMARY KEY (`id`),',
-        'UNIQUE INDEX `id_UNIQUE` (`id` ASC)',
-      ')'
-    ].join(' ');
-
-    await this.connection.execute(create);
+  private async initSchema() {
+    await this.pool.execute(
+      `CREATE TABLE IF NOT EXISTS ${this.dbtable} (
+        \`id\` CHAR(36) NOT NULL,
+        \`workerid\` CHAR(36) NULL,
+        \`name\` VARCHAR(100) NULL,
+        \`created\` DATETIME NOT NULL,
+        \`expires\` DATETIME NULL,
+        \`expirems\` INT NULL,
+        \`stalls\` DATETIME NULL,
+        \`stallms\` INT NULL,
+        \`status\` ENUM('ready', 'processing', 'done', 'failed') NOT NULL,
+        \`retryx\` INT NOT NULL,
+        \`retries\` INT NOT NULL,
+        \`data\` LONGTEXT NULL,
+        PRIMARY KEY (\`id\`),
+        UNIQUE INDEX \`id_UNIQUE\` (\`id\` ASC)
+      )`
+    );
 
     const indexes = [
       [
@@ -231,16 +240,16 @@ export class MysqlEngine extends HirelingDb {
 
     for (const i of indexes) {
       try {
-        await this.connection.execute(i);
+        await this.pool.execute(i);
       }
       catch (err) {
         // ignore existing index errors
       }
     }
 
-    await this.connection.query(`DROP PROCEDURE IF EXISTS \`${this.sproc}\``);
+    await this.pool.query(`DROP PROCEDURE IF EXISTS \`${this.sproc}\``);
 
-    await this.connection.query(
+    await this.pool.query(
       `CREATE PROCEDURE \`${this.sproc}\`()
       BEGIN
         START TRANSACTION;
