@@ -9,6 +9,7 @@
     "clean": "rm -rf ./build",
     "lint": "tslint -p tsconfig.json",
     "build": "tsc",
+    "watch": "tsc --watch",
     "package": "npm run clean && npm run build && ./package.sh"
   },
   "dependencies": {
