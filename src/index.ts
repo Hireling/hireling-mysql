@@ -28,7 +28,8 @@ export const MYSQL_DEFS = {
   database: 'hireling',
   user:     'hireling',
   password: 'hireling',
-  table:    'jobs'
+  table:    'jobs',
+  opts:     ({} as any) as object // pass-through client options, merged in
 };
 
 export type MysqlOpt = typeof MYSQL_DEFS;
@@ -54,7 +55,8 @@ export class MysqlEngine extends HirelingDb {
       port:     this.dbc.port,
       user:     this.dbc.user,
       password: this.dbc.password,
-      database: this.dbc.database
+      database: this.dbc.database,
+      ...this.dbc.opts
     });
 
     pool.getConnection().then(async (conn: MysqlConnection) => {
