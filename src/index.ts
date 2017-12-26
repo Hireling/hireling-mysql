@@ -229,6 +229,26 @@ export class MysqlEngine extends HirelingDb {
       )`
     );
 
+    const indexes = [
+      [
+        `ALTER TABLE ${this.dbtable}`,
+        'ADD INDEX `status_expires` (`status` ASC, `expires` ASC)'
+      ].join(' '),
+      [
+        `ALTER TABLE ${this.dbtable}`,
+        'ADD INDEX `status_stalls` (`status` ASC, `stalls` ASC)'
+      ].join(' ')
+    ];
+
+    for (const i of indexes) {
+      try {
+        await this.pool.execute(i);
+      }
+      catch (err) {
+        // ignore existing index errors
+      }
+    }
+
     await this.pool.query(`DROP PROCEDURE IF EXISTS \`${this.sproc}\``);
 
     await this.pool.query(
