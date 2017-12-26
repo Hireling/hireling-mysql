@@ -230,14 +230,7 @@ export class MysqlEngine extends HirelingDb {
     );
 
     const indexes = [
-      [
-        `ALTER TABLE ${this.dbtable}`,
-        'ADD INDEX `status_expires` (`status` ASC, `expires` ASC)'
-      ].join(' '),
-      [
-        `ALTER TABLE ${this.dbtable}`,
-        'ADD INDEX `status_stalls` (`status` ASC, `stalls` ASC)'
-      ].join(' ')
+      `ALTER TABLE ${this.dbtable} ADD INDEX \`status\` (\`status\` ASC)`
     ];
 
     for (const i of indexes) {
