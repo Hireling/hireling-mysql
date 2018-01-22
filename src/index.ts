@@ -223,6 +223,7 @@ export class MysqlEngine extends HirelingDb {
         \`status\` ENUM('ready', 'processing', 'done', 'failed') NOT NULL,
         \`retryx\` INT NOT NULL,
         \`retries\` INT NOT NULL,
+        \`sandbox\` TINYINT(1) NOT NULL,
         \`data\` LONGTEXT NULL,
         PRIMARY KEY (\`id\`),
         UNIQUE INDEX \`id_UNIQUE\` (\`id\` ASC)
