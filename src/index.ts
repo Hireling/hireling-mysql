@@ -1,6 +1,6 @@
 import { EventEmitter } from 'events';
 import * as mysql from 'mysql2/promise';
-import { Db as HirelingDb, DbEvent } from 'hireling/db';
+import { Db as HirelingDb } from 'hireling/db';
 import { JobId, JobAttr } from 'hireling/job';
 import { WorkerId } from 'hireling/worker';
 import { Serializer } from 'hireling/serializer';
@@ -59,28 +59,29 @@ export class MysqlEngine extends HirelingDb {
       ...this.dbc.opts
     });
 
-    pool.getConnection().then(async (conn: MysqlConnection) => {
-      this.log.debug('opened');
+    pool.getConnection()
+      .then(async (conn: MysqlConnection) => {
+        this.log.debug('opened');
 
-      this.pool = pool;
+        this.pool = pool;
 
-      conn.release();
+        conn.release();
 
-      conn.on('error', (err) => {
-        this.log.error('db connection error', err);
+        conn.on('error', (err) => {
+          this.log.error('db connection error', err);
 
-        this.event(DbEvent.close, err);
+          this.down.emit(err);
+        });
+
+        await this.initSchema();
+
+        this.up.emit();
+      })
+      .catch((err: Error) => {
+        this.log.error('could not connect to db', err);
+
+        this.down.emit(err);
       });
-
-      await this.initSchema();
-
-      this.event(DbEvent.open);
-    })
-    .catch((err: Error) => {
-      this.log.error('could not connect to db', err);
-
-      this.event(DbEvent.close, err);
-    });
   }
 
   close(force = false) {
@@ -90,12 +91,12 @@ export class MysqlEngine extends HirelingDb {
       .then(() => {
         this.log.debug('closed');
 
-        this.event(DbEvent.close);
+        this.down.emit(null);
       })
       .catch((err: Error) => {
         this.log.debug('close error', err);
 
-        this.event(DbEvent.close, err);
+        this.down.emit(err);
       });
   }
 
