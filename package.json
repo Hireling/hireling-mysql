@@ -1,6 +1,6 @@
 {
   "name": "hireling-mysql",
-  "version": "2.0.2",
+  "version": "3.0.0",
   "description": "MySQL database connector for Hireling.",
   "author": "Alex Soncodi",
   "license": "MIT",
@@ -13,14 +13,14 @@
     "package": "npm run clean && npm run build && ./package.sh"
   },
   "dependencies": {
-    "mysql2": "~1.5.1"
+    "mysql2": "~1.5.2"
   },
   "devDependencies": {
-    "@types/node": "~9.3.0",
-    "typescript": "~2.6.2"
+    "@types/node": "~9.4.5",
+    "typescript": "~2.7.1"
   },
   "peerDependencies": {
-    "hireling": "^2.0.0"
+    "hireling": "^3.0.0"
   },
   "keywords": [
     "mysql",

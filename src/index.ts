@@ -35,7 +35,7 @@ export const MYSQL_DEFS = {
 export type MysqlOpt = typeof MYSQL_DEFS;
 
 export class MysqlEngine extends HirelingDb {
-  private pool: MysqlPool;
+  private pool!: MysqlPool;
   private readonly dbc: MysqlOpt;
   private readonly dbtable: string;
   private readonly sproc = 'reserve_sproc';
@@ -224,8 +224,10 @@ export class MysqlEngine extends HirelingDb {
         \`status\` ENUM('ready', 'processing', 'done', 'failed') NOT NULL,
         \`retryx\` INT NOT NULL,
         \`retries\` INT NOT NULL,
-        \`sandbox\` TINYINT(1) NOT NULL,
+        \`sandbox\` TINYINT NULL,
         \`data\` LONGTEXT NULL,
+        \`ctx\` LONGTEXT NULL,
+        \`ctxkind\` VARCHAR(50) NULL
         PRIMARY KEY (\`id\`),
         UNIQUE INDEX \`id_UNIQUE\` (\`id\` ASC)
       )`
@@ -235,9 +237,9 @@ export class MysqlEngine extends HirelingDb {
       `ALTER TABLE ${this.dbtable} ADD INDEX \`status\` (\`status\` ASC)`
     ];
 
-    for (const i of indexes) {
+    for (const idx of indexes) {
       try {
-        await this.pool.execute(i);
+        await this.pool.execute(idx);
       }
       catch (err) {
         // ignore existing index errors
